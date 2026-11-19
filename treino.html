@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#0f1115">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Meus Treinos</title>
+  <style>
+    :root {
+      --bg-body: #0f1115;
+      --bg-surface: #181b22;
+      --bg-surface-hover: #20242e;
+      --bg-completed: #13221c;
+      --border-subtle: #282d38;
+      --border-completed: #245740;
+      --text-primary: #f3f4f6;
+      --text-secondary: #9ca3af;
+      --text-muted: #6b7280;
+      --accent: #10b981;
+      --accent-soft: rgba(16, 185, 129, 0.14);
+      --danger-soft: rgba(239, 68, 68, 0.12);
+      --danger-text: #f87171;
+      --radius-lg: 16px;
+      --radius-md: 12px;
+      --radius-sm: 8px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg-body);
+      color: var(--text-primary);
+      line-height: 1.45;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      padding: 20px 16px 40px;
+    }
+
+    .app-container {
+      width: 100%;
+      max-width: 480px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* Cabeçalho */
+    header {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .app-subtitle {
+      font-size: 0.78rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--accent);
+    }
+
+    .app-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    /* Seletor de Treinos (Abas A, B, C, D) */
+    .tabs {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      background-color: var(--bg-surface);
+      padding: 6px;
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border-subtle);
+    }
+
+    .tab-btn {
+      position: relative;
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      font-size: 0.95rem;
+      font-weight: 600;
+      padding: 12px 4px;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      transition: background-color 0.2s ease, color 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+    }
+
+    .tab-btn:active {
+      transform: scale(0.97);
+    }
+
+    .tab-btn.active {
+      background-color: var(--accent);
+      color: #062117;
+      font-weight: 700;
+    }
+
+    .tab-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background-color: var(--accent);
+      display: none;
+    }
+
+    .tab-btn.completed:not(.active) .tab-dot {
+      display: inline-block;
+    }
+
+    /* Cartão de Status e Progresso */
+    .workout-header-card {
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .workout-title-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .workout-name {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      line-height: 1.3;
+    }
+
+    .completed-badge {
+      display: none;
+      align-items: center;
+      gap: 5px;
+      background-color: var(--accent-soft);
+      color: var(--accent);
+      border: 1px solid var(--border-completed);
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 999px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .completed-badge.visible {
+      display: inline-flex;
+    }
+
+    .progress-info {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+    }
+
+    .progress-count {
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .progress-bar-bg {
+      width: 100%;
+      height: 6px;
+      background-color: var(--bg-body);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      width: 0%;
+      background-color: var(--accent);
+      border-radius: 999px;
+      transition: width 0.25s ease;
+    }
+
+    /* Lista de Exercícios */
+    .exercise-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .exercise-card {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 16px;
+      cursor: pointer;
+      user-select: none;
+      transition: background-color 0.2s ease, border-color 0.2s ease;
+    }
+
+    .exercise-card:active {
+      transform: scale(0.99);
+    }
+
+    .exercise-card.done {
+      background-color: var(--bg-completed);
+      border-color: var(--border-completed);
+    }
+
+    /* Checkbox customizado acessível */
+    .exercise-checkbox {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 24px;
+      height: 24px;
+      min-width: 24px;
+      border-radius: var(--radius-sm);
+      border: 2px solid var(--text-muted);
+      background-color: transparent;
+      display: grid;
+      place-content: center;
+      cursor: pointer;
+      transition: background-color 0.15s ease, border-color 0.15s ease;
+    }
+
+    .exercise-checkbox::before {
+      content: "";
+      width: 12px;
+      height: 12px;
+      transform: scale(0);
+      transition: transform 0.15s ease;
+      background-color: #062117;
+      clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+    }
+
+    .exercise-checkbox:checked {
+      background-color: var(--accent);
+      border-color: var(--accent);
+    }
+
+    .exercise-checkbox:checked::before {
+      transform: scale(1);
+    }
+
+    .exercise-label {
+      font-size: 1rem;
+      font-weight: 500;
+      color: var(--text-primary);
+      transition: color 0.2s ease;
+    }
+
+    .exercise-card.done .exercise-label {
+      color: var(--text-secondary);
+      text-decoration: line-through;
+      text-decoration-color: var(--accent);
+    }
+
+
+    /* Mensagem discreta de conclusão */
+    .completion-message {
+      display: none;
+      text-align: center;
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.10), rgba(16, 185, 129, 0.04));
+      border: 1px solid var(--border-completed);
+      border-radius: var(--radius-lg);
+      padding: 18px 16px;
+      color: var(--text-primary);
+      animation: completion-appear 0.35s ease-out;
+    }
+    .completion-message.visible { display: block; }
+    .completion-message .completion-symbol {
+      color: var(--accent);
+      font-size: 1.2rem;
+      margin-bottom: 5px;
+    }
+    .completion-message .completion-title {
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .completion-message .completion-text {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+    }
+    @keyframes completion-appear {
+      from { opacity: 0; transform: translateY(5px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .completion-message { animation: none; }
+    }
+
+    /* Botão Reset */
+    .actions-footer {
+      margin-top: 6px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .reset-btn {
+      width: 100%;
+      background-color: var(--bg-surface);
+      color: var(--text-secondary);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 14px 16px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+    }
+
+    .reset-btn:hover:not(:disabled) {
+      background-color: var(--danger-soft);
+      color: var(--danger-text);
+      border-color: rgba(239, 68, 68, 0.3);
+    }
+
+    .reset-btn:active:not(:disabled) {
+      transform: scale(0.98);
+    }
+
+    .reset-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+  </style>
+</head>
+<body>
+  <main class="app-container">
+    <header>
+      <span class="app-subtitle">Ficha de Musculação</span>
+      <h1 class="app-title">Acompanhamento</h1>
+    </header>
+
+    <nav class="tabs" aria-label="Selecionar treino">
+      <button type="button" class="tab-btn active" data-workout="A">
+        Treino A <span class="tab-dot" aria-hidden="true"></span>
+      </button>
+      <button type="button" class="tab-btn" data-workout="B">
+        Treino B <span class="tab-dot" aria-hidden="true"></span>
+      </button>
+      <button type="button" class="tab-btn" data-workout="C">
+        Treino C <span class="tab-dot" aria-hidden="true"></span>
+      </button>
+      <button type="button" class="tab-btn" data-workout="D">
+        Treino D <span class="tab-dot" aria-hidden="true"></span>
+      </button>
+    </nav>
+
+    <section class="workout-header-card" aria-live="polite">
+      <div class="workout-title-row">
+        <h2 id="workoutTitle" class="workout-name">TREINO A — PEITO, OMBROS E TRÍCEPS</h2>
+        <span id="completedBadge" class="completed-badge">✓ Concluído</span>
+      </div>
+
+      <div class="progress-info">
+        <span>Progresso</span>
+        <span id="progressText" class="progress-count">0 de 7 exercícios concluídos</span>
+      </div>
+
+      <div class="progress-bar-bg" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="progressBar">
+        <div id="progressFill" class="progress-bar-fill"></div>
+      </div>
+    </section>
+
+    <section id="exerciseList" class="exercise-list" aria-label="Lista de exercícios"></section>
+
+
+    <section id="completionMessage" class="completion-message" aria-live="polite">
+      <div class="completion-symbol">✦</div>
+      <p class="completion-title">Treino concluído!</p>
+      <p id="completionText" class="completion-text"></p>
+    </section>
+
+
+    <footer class="actions-footer">
+      <button type="button" id="resetBtn" class="reset-btn">
+        Desmarcar todos os exercícios deste treino
+      </button>
+    </footer>
+  </main>
+
+  <script>
+    // =========================================================================
+    // DADOS DOS TREINOS (Edite aqui facilmente caso queira ajustar no futuro)
+    // =========================================================================
+    const WORKOUTS = {
+      A: {
+        title: "TREINO A — PEITO, OMBROS E TRÍCEPS",
+        exercises: [
+          "Supino reto",
+          "Supino inclinado + crucifixo",
+          "Desenvolvimento sentado",
+          "Elevação lateral",
+          "Elevação frontal",
+          "Tríceps na polia com corda",
+          "Tríceps francês sentado"
+        ]
+      },
+      B: {
+        title: "TREINO B — QUADRÍCEPS",
+        exercises: [
+          "Agachamento Smith",
+          "Afundo",
+          "Leg press 45°",
+          "Cadeira adutora",
+          "Cadeira extensora",
+          "Panturrilha"
+        ]
+      },
+      C: {
+        title: "TREINO C — DORSAL E BÍCEPS",
+        exercises: [
+          "Puxada articulada unilateral",
+          "Remada baixa",
+          "Remada curvada",
+          "Remada unilateral",
+          "Rosca direta",
+          "Rosca martelo"
+        ]
+      },
+      D: {
+        title: "TREINO D — POSTERIOR E GLÚTEO",
+        exercises: [
+          "Sumô",
+          "Búlgaro",
+          "Elevação pélvica",
+          "Cadeira adutora",
+          "Mesa flexora + stiff",
+          "Panturrilha"
+        ]
+      }
+    };
+
+    // =========================================================================
+    // ESTADO E ARMAZENAMENTO LOCAL (localStorage)
+    // =========================================================================
+    const STORAGE_KEY = "meus_treinos_progresso_v1";
+    const ACTIVE_TAB_KEY = "meus_treinos_aba_ativa_v1";
+
+    function loadProgress() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        return saved ? JSON.parse(saved) : { A: [], B: [], C: [], D: [] };
+      } catch (e) {
+        return { A: [], B: [], C: [], D: [] };
+      }
+    }
+
+    function saveProgress(state) {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      } catch (e) {
+        console.warn("Não foi possível salvar no localStorage.", e);
+      }
+    }
+
+    let progressState = loadProgress();
+    let currentWorkoutKey = localStorage.getItem(ACTIVE_TAB_KEY) || "A";
+    if (!WORKOUTS[currentWorkoutKey]) currentWorkoutKey = "A";
+
+    // =========================================================================
+    // ELEMENTOS DA INTERFACE
+    // =========================================================================
+    const tabButtons = document.querySelectorAll(".tab-btn");
+    const workoutTitleEl = document.getElementById("workoutTitle");
+    const completedBadgeEl = document.getElementById("completedBadge");
+    const progressTextEl = document.getElementById("progressText");
+    const progressBarEl = document.getElementById("progressBar");
+    const progressFillEl = document.getElementById("progressFill");
+    const exerciseListEl = document.getElementById("exerciseList");
+    const resetBtn = document.getElementById("resetBtn");
+    const completionMessageEl = document.getElementById("completionMessage");
+    const completionTextEl = document.getElementById("completionText");
+    const COMPLETION_MESSAGES_KEY = "meus_treinos_mensagens_conclusao_v1";
+    const completionMessages = [
+      "Você fez sua parte hoje. Agora é hora de descansar.",
+      "Mais um tijolo na construção. Até o próximo treino!",
+      "Você veio, treinou e venceu a preguiça.",
+      "Feito é melhor que perfeito. Missão cumprida!",
+      "+1 dia de consistência. Pode se orgulhar.",
+      "Pode ir embora. Você fez por merecer. 😌"
+    ];
+    let savedCompletionMessages = {};
+    try {
+      savedCompletionMessages = JSON.parse(localStorage.getItem(COMPLETION_MESSAGES_KEY) || "{}");
+    } catch (e) {
+      savedCompletionMessages = {};
+    }
+    function saveCompletionMessages() {
+      try { localStorage.setItem(COMPLETION_MESSAGES_KEY, JSON.stringify(savedCompletionMessages)); }
+      catch (e) { console.warn("Não foi possível salvar a mensagem de conclusão.", e); }
+    }
+
+    // =========================================================================
+    // RENDERIZAÇÃO E LÓGICA
+    // =========================================================================
+    function isWorkoutComplete(key) {
+      const total = WORKOUTS[key].exercises.length;
+      const doneList = progressState[key] || [];
+      return total > 0 && doneList.length === total;
+    }
+
+    function updateTabsUI() {
+      tabButtons.forEach((btn) => {
+        const key = btn.dataset.workout;
+        btn.classList.toggle("active", key === currentWorkoutKey);
+        btn.classList.toggle("completed", isWorkoutComplete(key));
+      });
+    }
+
+    function updateProgressUI() {
+      const workout = WORKOUTS[currentWorkoutKey];
+      const total = workout.exercises.length;
+      const completedCount = (progressState[currentWorkoutKey] || []).length;
+      const percentage = total > 0 ? Math.round((completedCount / total) * 100) : 0;
+      const allDone = total > 0 && completedCount === total;
+
+      progressTextEl.textContent = `${completedCount} de ${total} exercícios concluídos`;
+      progressFillEl.style.width = `${percentage}%`;
+      progressBarEl.setAttribute("aria-valuenow", percentage);
+
+      completedBadgeEl.classList.toggle("visible", allDone);
+      completionMessageEl.classList.toggle("visible", allDone);
+      completionTextEl.textContent = allDone ? (savedCompletionMessages[currentWorkoutKey] || completionMessages[0]) : "";
+      resetBtn.disabled = completedCount === 0;
+      updateTabsUI();
+    }
+
+    function toggleExercise(index) {
+      if (!Array.isArray(progressState[currentWorkoutKey])) {
+        progressState[currentWorkoutKey] = [];
+      }
+
+      const list = progressState[currentWorkoutKey];
+      const pos = list.indexOf(index);
+
+      if (pos === -1) {
+        list.push(index);
+      } else {
+        list.splice(pos, 1);
+      }
+
+      if (isWorkoutComplete(currentWorkoutKey)) {
+        if (!savedCompletionMessages[currentWorkoutKey]) {
+          savedCompletionMessages[currentWorkoutKey] = completionMessages[Math.floor(Math.random() * completionMessages.length)];
+        }
+      } else {
+        delete savedCompletionMessages[currentWorkoutKey];
+      }
+      saveCompletionMessages();
+      saveProgress(progressState);
+      renderExercises();
+    }
+
+    function renderExercises() {
+      const workout = WORKOUTS[currentWorkoutKey];
+      const completedIndices = progressState[currentWorkoutKey] || [];
+
+      workoutTitleEl.textContent = workout.title;
+      exerciseListEl.innerHTML = "";
+
+      workout.exercises.forEach((exerciseName, index) => {
+        const isDone = completedIndices.includes(index);
+
+        const card = document.createElement("label");
+        card.className = `exercise-card${isDone ? " done" : ""}`;
+
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.className = "exercise-checkbox";
+        checkbox.checked = isDone;
+        checkbox.addEventListener("change", () => toggleExercise(index));
+
+        const text = document.createElement("span");
+        text.className = "exercise-label";
+        text.textContent = exerciseName;
+
+        card.appendChild(checkbox);
+        card.appendChild(text);
+        exerciseListEl.appendChild(card);
+      });
+
+      updateProgressUI();
+    }
+
+    // Eventos das abas
+    tabButtons.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const selected = btn.dataset.workout;
+        if (selected === currentWorkoutKey) return;
+
+        currentWorkoutKey = selected;
+        localStorage.setItem(ACTIVE_TAB_KEY, currentWorkoutKey);
+        renderExercises();
+      });
+    });
+
+    // Evento do botão de desmarcar
+    resetBtn.addEventListener("click", () => {
+      progressState[currentWorkoutKey] = [];
+      delete savedCompletionMessages[currentWorkoutKey];
+      saveCompletionMessages();
+      saveProgress(progressState);
+      renderExercises();
+    });
+
+    // Inicialização
+    renderExercises();
+  </script>
+</body>
+</html>

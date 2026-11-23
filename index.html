@@ -227,22 +227,24 @@
       display: flex;
       align-items: center;
       gap: 6px;
-      flex-wrap: wrap;
+      flex-wrap: nowrap;
       padding-left: 38px;
     }
+
 
     .set-label {
       color: var(--text-muted);
       font-size: 0.78rem;
-      flex: 0 0 100%;
-      margin-bottom: 2px;
+      flex: 0 0 auto;
+      margin-right: 2px;
     }
 
     .set-btn {
-      flex: 1 1 0;
-      min-width: 0;
+      flex: 0 0 42px;
+      width: 42px;
+      min-width: 42px;
       min-height: 38px;
-      padding: 7px 4px;
+      padding: 7px 3px;
       border-radius: 10px;
       border: 1px solid var(--border-subtle);
       background: var(--bg-body);
@@ -670,14 +672,14 @@
         setsRow.className = "sets-row";
         const setsLabel = document.createElement("span");
         setsLabel.className = "set-label";
-        setsLabel.textContent = "Séries";
+        setsLabel.textContent = "Séries:";
         setsRow.appendChild(setsLabel);
 
         for (let set = 0; set < SETS_PER_EXERCISE; set++) {
           const setBtn = document.createElement("button");
           setBtn.type = "button";
           setBtn.className = `set-btn${doneSets.includes(set) ? " done" : ""}`;
-          setBtn.textContent = `Série ${set + 1}${doneSets.includes(set) ? " ✓" : ""}`;
+          setBtn.textContent = `${set + 1}${doneSets.includes(set) ? " ✓" : ""}`;
           setBtn.setAttribute("aria-pressed", doneSets.includes(set) ? "true" : "false");
           setBtn.addEventListener("click", () => toggleSet(index, set));
           setsRow.appendChild(setBtn);

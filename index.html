@@ -42,7 +42,7 @@
       min-height: 100vh;
       display: flex;
       justify-content: center;
-      padding: 20px 16px 40px;
+      padding: 20px 16px calc(150px + env(safe-area-inset-bottom));
     }
 
     .app-container {
@@ -201,6 +201,14 @@
     /* Temporizador de descanso */
     .rest-timer {
       display: none;
+      position: fixed;
+      left: 50%;
+      bottom: max(12px, env(safe-area-inset-bottom));
+      transform: translateX(-50%);
+      width: calc(100% - 24px);
+      max-width: 480px;
+      z-index: 1000;
+      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
       background: var(--bg-surface);
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-md);
@@ -752,6 +760,25 @@
     }
 
 
+    function setExerciseComplete(exerciseIndex, complete) {
+      if (!progressState[currentWorkoutKey] || Array.isArray(progressState[currentWorkoutKey])) {
+        progressState[currentWorkoutKey] = {};
+      }
+      progressState[currentWorkoutKey][exerciseIndex] = complete
+        ? Array.from({ length: SETS_PER_EXERCISE }, (_, setIndex) => setIndex)
+        : [];
+      if (isWorkoutComplete(currentWorkoutKey)) {
+        if (!savedCompletionMessages[currentWorkoutKey]) {
+          savedCompletionMessages[currentWorkoutKey] = completionMessages[Math.floor(Math.random() * completionMessages.length)];
+        }
+      } else {
+        delete savedCompletionMessages[currentWorkoutKey];
+      }
+      saveCompletionMessages();
+      saveProgress(progressState);
+      renderExercises();
+    }
+
     function renderExercises() {
       const workout = WORKOUTS[currentWorkoutKey];
       workoutTitleEl.textContent = workout.title;
@@ -771,8 +798,11 @@
         checkbox.type = "checkbox";
         checkbox.className = "exercise-checkbox";
         checkbox.checked = isDone;
-        checkbox.disabled = true;
+        checkbox.disabled = false;
         checkbox.setAttribute("aria-label", `${exerciseName} concluído`);
+        checkbox.addEventListener("change", () => {
+          setExerciseComplete(index, checkbox.checked);
+        });
 
         const text = document.createElement("span");
         text.className = "exercise-label";

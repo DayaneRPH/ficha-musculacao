@@ -197,6 +197,47 @@
       transition: width 0.25s ease;
     }
 
+
+    /* Temporizador de descanso */
+    .rest-timer {
+      display: none;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 12px 14px;
+      gap: 8px;
+    }
+    .rest-timer.visible { display: flex; flex-direction: column; }
+    .rest-timer-top, .rest-timer-bottom {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .rest-timer-label { color: var(--text-secondary); font-size: 0.82rem; font-weight: 600; }
+    .rest-timer-status { color: var(--accent); font-size: 0.75rem; font-weight: 600; }
+    .rest-timer-time { font-size: 1.45rem; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: 0.02em; }
+    .rest-timer-actions { display: flex; gap: 6px; }
+    .rest-timer-btn {
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-body);
+      color: var(--text-secondary);
+      border-radius: 9px;
+      padding: 7px 10px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+    .rest-timer-btn:active { transform: scale(0.97); }
+    .rest-timer-track { height: 4px; width: 100%; background: var(--bg-body); border-radius: 999px; overflow: hidden; }
+    .rest-timer-fill { height: 100%; width: 100%; background: var(--accent); border-radius: 999px; transition: width 0.25s linear; }
+    .rest-timer.finished .rest-timer-status { color: var(--text-primary); }
+    @media (max-width: 360px) {
+      .rest-timer { padding: 10px 12px; }
+      .rest-timer-btn { padding: 7px 8px; }
+    }
+
     /* Lista de Exercícios */
     .exercise-list {
       display: flex;
@@ -427,6 +468,22 @@
       </div>
     </section>
 
+
+    <section id="restTimer" class="rest-timer">
+      <div class="rest-timer-top">
+        <span class="rest-timer-label">Descanso</span>
+        <span id="restTimerStatus" class="rest-timer-status" aria-live="polite">Em andamento</span>
+      </div>
+      <div class="rest-timer-bottom">
+        <span id="restTimerTime" class="rest-timer-time">01:00</span>
+        <div class="rest-timer-actions">
+          <button type="button" id="addRestBtn" class="rest-timer-btn">+15s</button>
+          <button type="button" id="skipRestBtn" class="rest-timer-btn">Pular</button>
+        </div>
+      </div>
+      <div class="rest-timer-track"><div id="restTimerFill" class="rest-timer-fill"></div></div>
+    </section>
+
     <section id="exerciseList" class="exercise-list" aria-label="Lista de exercícios"></section>
 
 
@@ -553,6 +610,60 @@
     const resetBtn = document.getElementById("resetBtn");
     const completionMessageEl = document.getElementById("completionMessage");
     const completionTextEl = document.getElementById("completionText");
+    // Temporizador de descanso (60 segundos)
+    const restTimerEl = document.getElementById("restTimer");
+    const restTimerTimeEl = document.getElementById("restTimerTime");
+    const restTimerStatusEl = document.getElementById("restTimerStatus");
+    const restTimerFillEl = document.getElementById("restTimerFill");
+    const addRestBtn = document.getElementById("addRestBtn");
+    const skipRestBtn = document.getElementById("skipRestBtn");
+    const REST_SECONDS = 60;
+    let restEndAt = 0;
+    let restDuration = REST_SECONDS;
+    let restInterval = null;
+
+    function formatTime(seconds) {
+      const safeSeconds = Math.max(0, Math.ceil(seconds));
+      return `${String(Math.floor(safeSeconds / 60)).padStart(2, "0")}:${String(safeSeconds % 60).padStart(2, "0")}`;
+    }
+    function renderRestTimer() {
+      const remaining = Math.max(0, (restEndAt - Date.now()) / 1000);
+      restTimerTimeEl.textContent = formatTime(remaining);
+      restTimerFillEl.style.width = `${Math.max(0, (remaining / restDuration) * 100)}%`;
+      if (remaining <= 0) finishRestTimer();
+    }
+    function startRestTimer(seconds = REST_SECONDS) {
+      restDuration = seconds;
+      restEndAt = Date.now() + seconds * 1000;
+      restTimerEl.classList.add("visible");
+      restTimerEl.classList.remove("finished");
+      restTimerStatusEl.textContent = "Em andamento";
+      if (restInterval) clearInterval(restInterval);
+      renderRestTimer();
+      restInterval = setInterval(renderRestTimer, 250);
+    }
+    function finishRestTimer() {
+      if (restInterval) clearInterval(restInterval);
+      restInterval = null;
+      restEndAt = 0;
+      restTimerTimeEl.textContent = "00:00";
+      restTimerFillEl.style.width = "0%";
+      restTimerStatusEl.textContent = "Descanso finalizado ✓";
+      restTimerEl.classList.add("finished");
+    }
+    function addRestTime() {
+      if (!restEndAt) return;
+      const remaining = Math.max(0, (restEndAt - Date.now()) / 1000);
+      startRestTimer(remaining + 15);
+    }
+    function skipRest() {
+      if (!restTimerEl.classList.contains("visible")) return;
+      finishRestTimer();
+      restTimerStatusEl.textContent = "Descanso encerrado";
+    }
+    addRestBtn.addEventListener("click", addRestTime);
+    skipRestBtn.addEventListener("click", skipRest);
+
     const COMPLETION_MESSAGES_KEY = "meus_treinos_mensagens_conclusao_v1";
     const completionMessages = [
       "Você fez sua parte hoje. Agora é hora de descansar.",
@@ -622,6 +733,7 @@
       }
       const sets = getSetsDone(currentWorkoutKey, exerciseIndex).slice();
       const position = sets.indexOf(setIndex);
+      const isMarkingSet = position === -1;
       if (position === -1) sets.push(setIndex);
       else sets.splice(position, 1);
       progressState[currentWorkoutKey][exerciseIndex] = sets;
@@ -636,7 +748,9 @@
       saveCompletionMessages();
       saveProgress(progressState);
       renderExercises();
+      if (isMarkingSet) startRestTimer(REST_SECONDS);
     }
+
 
     function renderExercises() {
       const workout = WORKOUTS[currentWorkoutKey];
@@ -710,6 +824,10 @@
       delete savedCompletionMessages[currentWorkoutKey];
       saveCompletionMessages();
       saveProgress(progressState);
+      if (restInterval) clearInterval(restInterval);
+      restInterval = null;
+      restEndAt = 0;
+      restTimerEl.classList.remove("visible", "finished");
       renderExercises();
     });
 

@@ -206,15 +206,55 @@
 
     .exercise-card {
       display: flex;
-      align-items: center;
+      flex-direction: column;
       gap: 14px;
       background-color: var(--bg-surface);
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-md);
       padding: 16px;
-      cursor: pointer;
       user-select: none;
       transition: background-color 0.2s ease, border-color 0.2s ease;
+    }
+
+
+    .exercise-main {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .sets-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      padding-left: 38px;
+    }
+
+    .set-label {
+      color: var(--text-muted);
+      font-size: 0.78rem;
+      margin-right: 2px;
+    }
+
+    .set-btn {
+      min-width: 42px;
+      min-height: 38px;
+      padding: 7px 10px;
+      border-radius: 10px;
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-body);
+      color: var(--text-secondary);
+      font-size: 0.82rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+    }
+
+    .set-btn.done {
+      background: var(--accent-soft);
+      color: var(--accent);
+      border-color: var(--border-completed);
     }
 
     .exercise-card:active {
@@ -454,17 +494,34 @@
     // =========================================================================
     // ESTADO E ARMAZENAMENTO LOCAL (localStorage)
     // =========================================================================
-    const STORAGE_KEY = "meus_treinos_progresso_v1";
+    const STORAGE_KEY = "meus_treinos_progresso_v2";
+    const LEGACY_STORAGE_KEY = "meus_treinos_progresso_v1";
     const ACTIVE_TAB_KEY = "meus_treinos_aba_ativa_v1";
+    const SETS_PER_EXERCISE = 3;
+
 
     function loadProgress() {
+      const empty = { A: {}, B: {}, C: {}, D: {} };
       try {
-        const saved = localStorage.getItem(STORAGE_KEY);
-        return saved ? JSON.parse(saved) : { A: [], B: [], C: [], D: [] };
+        const savedV2 = localStorage.getItem(STORAGE_KEY);
+        if (savedV2) return JSON.parse(savedV2);
+        // Migra exercícios concluídos na versão anterior para 3 séries marcadas.
+        const old = localStorage.getItem(LEGACY_STORAGE_KEY);
+        if (old) {
+          const legacy = JSON.parse(old);
+          Object.keys(empty).forEach(key => {
+            (legacy[key] || []).forEach(index => {
+              empty[key][index] = [0, 1, 2];
+            });
+          });
+          return empty;
+        }
+        return empty;
       } catch (e) {
-        return { A: [], B: [], C: [], D: [] };
+        return empty;
       }
     }
+
 
     function saveProgress(state) {
       try {
@@ -514,10 +571,18 @@
     // =========================================================================
     // RENDERIZAÇÃO E LÓGICA
     // =========================================================================
+    function getSetsDone(key, exerciseIndex) {
+      const stored = progressState[key]?.[exerciseIndex];
+      return Array.isArray(stored) ? stored : [];
+    }
+
+    function isExerciseComplete(key, exerciseIndex) {
+      return getSetsDone(key, exerciseIndex).length >= SETS_PER_EXERCISE;
+    }
+
     function isWorkoutComplete(key) {
-      const total = WORKOUTS[key].exercises.length;
-      const doneList = progressState[key] || [];
-      return total > 0 && doneList.length === total;
+      return WORKOUTS[key].exercises.length > 0 &&
+        WORKOUTS[key].exercises.every((_, index) => isExerciseComplete(key, index));
     }
 
     function updateTabsUI() {
@@ -531,7 +596,7 @@
     function updateProgressUI() {
       const workout = WORKOUTS[currentWorkoutKey];
       const total = workout.exercises.length;
-      const completedCount = (progressState[currentWorkoutKey] || []).length;
+      const completedCount = workout.exercises.filter((_, index) => isExerciseComplete(currentWorkoutKey, index)).length;
       const percentage = total > 0 ? Math.round((completedCount / total) * 100) : 0;
       const allDone = total > 0 && completedCount === total;
 
@@ -546,19 +611,15 @@
       updateTabsUI();
     }
 
-    function toggleExercise(index) {
-      if (!Array.isArray(progressState[currentWorkoutKey])) {
-        progressState[currentWorkoutKey] = [];
+    function toggleSet(exerciseIndex, setIndex) {
+      if (!progressState[currentWorkoutKey] || Array.isArray(progressState[currentWorkoutKey])) {
+        progressState[currentWorkoutKey] = {};
       }
-
-      const list = progressState[currentWorkoutKey];
-      const pos = list.indexOf(index);
-
-      if (pos === -1) {
-        list.push(index);
-      } else {
-        list.splice(pos, 1);
-      }
+      const sets = getSetsDone(currentWorkoutKey, exerciseIndex).slice();
+      const position = sets.indexOf(setIndex);
+      if (position === -1) sets.push(setIndex);
+      else sets.splice(position, 1);
+      progressState[currentWorkoutKey][exerciseIndex] = sets;
 
       if (isWorkoutComplete(currentWorkoutKey)) {
         if (!savedCompletionMessages[currentWorkoutKey]) {
@@ -574,34 +635,57 @@
 
     function renderExercises() {
       const workout = WORKOUTS[currentWorkoutKey];
-      const completedIndices = progressState[currentWorkoutKey] || [];
-
       workoutTitleEl.textContent = workout.title;
       exerciseListEl.innerHTML = "";
 
       workout.exercises.forEach((exerciseName, index) => {
-        const isDone = completedIndices.includes(index);
+        const doneSets = getSetsDone(currentWorkoutKey, index);
+        const isDone = doneSets.length >= SETS_PER_EXERCISE;
 
-        const card = document.createElement("label");
+        const card = document.createElement("article");
         card.className = `exercise-card${isDone ? " done" : ""}`;
+
+        const main = document.createElement("div");
+        main.className = "exercise-main";
 
         const checkbox = document.createElement("input");
         checkbox.type = "checkbox";
         checkbox.className = "exercise-checkbox";
         checkbox.checked = isDone;
-        checkbox.addEventListener("change", () => toggleExercise(index));
+        checkbox.disabled = true;
+        checkbox.setAttribute("aria-label", `${exerciseName} concluído`);
 
         const text = document.createElement("span");
         text.className = "exercise-label";
         text.textContent = exerciseName;
 
-        card.appendChild(checkbox);
-        card.appendChild(text);
+        main.appendChild(checkbox);
+        main.appendChild(text);
+        card.appendChild(main);
+
+        const setsRow = document.createElement("div");
+        setsRow.className = "sets-row";
+        const setsLabel = document.createElement("span");
+        setsLabel.className = "set-label";
+        setsLabel.textContent = "Séries";
+        setsRow.appendChild(setsLabel);
+
+        for (let set = 0; set < SETS_PER_EXERCISE; set++) {
+          const setBtn = document.createElement("button");
+          setBtn.type = "button";
+          setBtn.className = `set-btn${doneSets.includes(set) ? " done" : ""}`;
+          setBtn.textContent = `Série ${set + 1}${doneSets.includes(set) ? " ✓" : ""}`;
+          setBtn.setAttribute("aria-pressed", doneSets.includes(set) ? "true" : "false");
+          setBtn.addEventListener("click", () => toggleSet(index, set));
+          setsRow.appendChild(setBtn);
+        }
+        card.appendChild(setsRow);
         exerciseListEl.appendChild(card);
       });
 
       updateProgressUI();
     }
+
 
     // Eventos das abas
     tabButtons.forEach((btn) => {
@@ -617,7 +701,7 @@
 
     // Evento do botão de desmarcar
     resetBtn.addEventListener("click", () => {
-      progressState[currentWorkoutKey] = [];
+      progressState[currentWorkoutKey] = {};
       delete savedCompletionMessages[currentWorkoutKey];
       saveCompletionMessages();
       saveProgress(progressState);
